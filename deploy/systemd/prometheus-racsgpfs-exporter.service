@@ -4,7 +4,7 @@ Documentation=https://github.com/uoracs/prometheus-racsgpfs-exporter
 
 [Service]
 User=root
-Environment="RACSGPFS_EXPORTER_LISTEN_ADDRESS=:8001"
+Environment="RACSGPFS_EXPORTER_LISTEN_ADDRESS=0.0.0.0:8001"
 ExecStart=/usr/local/sbin/prometheus-racsgpfs-exporter
 Restart=always
 RestartSec=3
