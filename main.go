@@ -17,8 +17,9 @@ import (
 var err error
 
 type Collector struct {
-	sizeGB *prometheus.Desc
-	inodes *prometheus.Desc
+	sizeGB  *prometheus.Desc
+	quotaGB *prometheus.Desc
+	inodes  *prometheus.Desc
 }
 
 type FilesetInfo struct {
@@ -61,8 +62,9 @@ func main() {
 func NewCollector() *Collector {
 	labels := []string{"project"}
 	return &Collector{
-		sizeGB: prometheus.NewDesc("racsgpfs_size_gb", "Current volume size in GB", labels, nil),
-		inodes: prometheus.NewDesc("racsgpfs_inodes", "Current volume inode count", labels, nil),
+		sizeGB:  prometheus.NewDesc("racsgpfs_size_gb", "Current fileset size in GB", labels, nil),
+		quotaGB: prometheus.NewDesc("racsgpfs_quota_gb", "Current fileset quota in GB", labels, nil),
+		inodes:  prometheus.NewDesc("racsgpfs_inodes", "Current fileset inode count", labels, nil),
 	}
 }
 
@@ -79,6 +81,7 @@ func (ac *Collector) Collect(ch chan<- prometheus.Metric) {
 	}
 	for _, vi := range vis {
 		ch <- prometheus.MustNewConstMetric(ac.sizeGB, prometheus.GaugeValue, vi.sizeGB, vi.name)
+		ch <- prometheus.MustNewConstMetric(ac.quotaGB, prometheus.GaugeValue, vi.quotaGB, vi.name)
 		ch <- prometheus.MustNewConstMetric(ac.inodes, prometheus.GaugeValue, vi.inodes, vi.name)
 	}
 }
