@@ -88,7 +88,7 @@ func (ac *Collector) Collect(ch chan<- prometheus.Metric) {
 
 func ParseGPFS() ([]*FilesetInfo, error) {
 	var fsInfos []*FilesetInfo
-	cmd := exec.Command("sh", "-c", `mmrepquota -j --block-size g fs1 | grep -v "Block Limits" | grep -v "in_doubt" | awk '{printf "%s|%s|%s|%s\n", $1, $4, $5, $10}'`)
+	cmd := exec.Command("sh", "-c", `/usr/lpp/mmfs/bin/mmrepquota -j --block-size g fs1 | grep -v "Block Limits" | grep -v "in_doubt" | awk '{printf "%s|%s|%s|%s\n", $1, $4, $5, $10}'`)
 
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
