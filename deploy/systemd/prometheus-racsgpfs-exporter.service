@@ -3,7 +3,6 @@ Description=Prometheus Exporter for RACS GPFS
 Documentation=https://github.com/uoracs/prometheus-racsgpfs-exporter
 
 [Service]
-User=root
 ExecStart=/usr/local/sbin/prometheus-racsgpfs-exporter
 Restart=always
 RestartSec=3
