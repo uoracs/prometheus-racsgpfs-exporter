@@ -27,6 +27,20 @@ Set a specific listen address for the metrics server.
 
 default: `:8030`
 
+## Metrics
+
+#### `racsgpfs_size_gb`
+
+Current size in GB of the fileset
+
+#### `racsgpfs_quota_gb`
+
+Current quota in GB of the fileset
+
+#### `racsgpfs_inodes`
+
+Current inode count of the fileset
+
 ## Uninstall
 
 `make clean`
