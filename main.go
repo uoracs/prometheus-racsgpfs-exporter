@@ -45,7 +45,7 @@ func main() {
 
 	listenAddress, found := os.LookupEnv("RACSGPFS_EXPORTER_LISTEN_ADDRESS")
 	if !found {
-		listenAddress = ":8080"
+		listenAddress = ":8030"
 	}
 
 	r := prometheus.NewRegistry()
