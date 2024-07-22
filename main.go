@@ -14,6 +14,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// TODO: add home USR filesets
+
 var err error
 
 type Collector struct {
