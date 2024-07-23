@@ -29,6 +29,7 @@ type FilesetInfo struct {
 	sizeGB  float64
 	quotaGB float64
 	inodes  float64
+	fstype  string
 }
 
 func main() {
@@ -62,7 +63,7 @@ func main() {
 }
 
 func NewCollector() *Collector {
-	labels := []string{"project"}
+	labels := []string{"name", "fstype"}
 	return &Collector{
 		sizeGB:  prometheus.NewDesc("racsgpfs_size_gb", "Current fileset size in GB", labels, nil),
 		quotaGB: prometheus.NewDesc("racsgpfs_quota_gb", "Current fileset quota in GB", labels, nil),
@@ -82,15 +83,15 @@ func (ac *Collector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	for _, vi := range vis {
-		ch <- prometheus.MustNewConstMetric(ac.sizeGB, prometheus.GaugeValue, vi.sizeGB, vi.name)
-		ch <- prometheus.MustNewConstMetric(ac.quotaGB, prometheus.GaugeValue, vi.quotaGB, vi.name)
-		ch <- prometheus.MustNewConstMetric(ac.inodes, prometheus.GaugeValue, vi.inodes, vi.name)
+		ch <- prometheus.MustNewConstMetric(ac.sizeGB, prometheus.GaugeValue, vi.sizeGB, vi.name, vi.fstype)
+		ch <- prometheus.MustNewConstMetric(ac.quotaGB, prometheus.GaugeValue, vi.quotaGB, vi.name, vi.fstype)
+		ch <- prometheus.MustNewConstMetric(ac.inodes, prometheus.GaugeValue, vi.inodes, vi.name, vi.fstype)
 	}
 }
 
 func ParseGPFS() ([]*FilesetInfo, error) {
 	var fsInfos []*FilesetInfo
-	cmd := exec.Command("sh", "-c", `/usr/lpp/mmfs/bin/mmrepquota -j --block-size g fs1 | grep -v "Block Limits" | grep -v "in_doubt" | awk '{printf "%s|%s|%s|%s\n", $1, $4, $5, $10}'`)
+	cmd := exec.Command("sh", "-c", `/usr/lpp/mmfs/bin/mmrepquota --block-size g fs1 | grep -v "Block Limits" | grep -v "in_doubt" | awk '{printf "%s|%s|%s|%s|%s\n", $3, $1, $4, $5, $10}'`)
 
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
@@ -106,6 +107,9 @@ func ParseGPFS() ([]*FilesetInfo, error) {
 			continue
 		}
 		info := parseLine(line)
+		if info == nil {
+			continue
+		}
 		fsInfos = append(fsInfos, info)
 	}
 	return fsInfos, nil
@@ -113,12 +117,16 @@ func ParseGPFS() ([]*FilesetInfo, error) {
 
 func parseLine(l string) *FilesetInfo {
 	elems := strings.Split(l, "|")
-	name := elems[0]
-	sizeGBstr := elems[1]
+	fstype := elems[0]
+	if fstype != "USR" && fstype != "FILESET" {
+		return nil
+	}
+	name := elems[1]
+	sizeGBstr := elems[2]
 	sizeGB, _ := strconv.ParseFloat(sizeGBstr, 64)
-	quotaGBstr := elems[2]
+	quotaGBstr := elems[3]
 	quotaGB, _ := strconv.ParseFloat(quotaGBstr, 64)
-	inodesStr := elems[3]
+	inodesStr := elems[4]
 	inodes, _ := strconv.ParseFloat(inodesStr, 64)
-	return &FilesetInfo{name: name, sizeGB: sizeGB, quotaGB: quotaGB, inodes: inodes}
+	return &FilesetInfo{name: name, sizeGB: sizeGB, quotaGB: quotaGB, inodes: inodes, fstype: fstype}
 }
