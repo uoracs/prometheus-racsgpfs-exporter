@@ -29,7 +29,6 @@ type FilesetInfo struct {
 	sizeGB  float64
 	quotaGB float64
 	inodes  float64
-	fstype  string
 }
 
 func main() {
@@ -77,19 +76,29 @@ func (ac *Collector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (ac *Collector) Collect(ch chan<- prometheus.Metric) {
-	vis, err := ParseGPFS()
+	projects, err := ParseGPFSProjects()
 	if err != nil {
 		slog.Error("failed to parse gpfs data", "error", err)
 		return
 	}
-	for _, vi := range vis {
-		ch <- prometheus.MustNewConstMetric(ac.sizeGB, prometheus.GaugeValue, vi.sizeGB, vi.name, vi.fstype)
-		ch <- prometheus.MustNewConstMetric(ac.quotaGB, prometheus.GaugeValue, vi.quotaGB, vi.name, vi.fstype)
-		ch <- prometheus.MustNewConstMetric(ac.inodes, prometheus.GaugeValue, vi.inodes, vi.name, vi.fstype)
+	for _, proj := range projects {
+		ch <- prometheus.MustNewConstMetric(ac.sizeGB, prometheus.GaugeValue, proj.sizeGB, proj.name, "project")
+		ch <- prometheus.MustNewConstMetric(ac.quotaGB, prometheus.GaugeValue, proj.quotaGB, proj.name, "project")
+		ch <- prometheus.MustNewConstMetric(ac.inodes, prometheus.GaugeValue, proj.inodes, proj.name, "project")
+	}
+	homes, err := ParseGPFSHomes()
+	if err != nil {
+		slog.Error("failed to parse gpfs data", "error", err)
+		return
+	}
+	for _, home := range homes {
+		ch <- prometheus.MustNewConstMetric(ac.sizeGB, prometheus.GaugeValue, home.sizeGB, home.name, "home")
+		ch <- prometheus.MustNewConstMetric(ac.quotaGB, prometheus.GaugeValue, home.quotaGB, home.name, "home")
+		ch <- prometheus.MustNewConstMetric(ac.inodes, prometheus.GaugeValue, home.inodes, home.name, "home")
 	}
 }
 
-func ParseGPFS() ([]*FilesetInfo, error) {
+func ParseGPFSProjects() ([]*FilesetInfo, error) {
 	var fsInfos []*FilesetInfo
 	cmd := exec.Command("sh", "-c", `/usr/lpp/mmfs/bin/mmrepquota --block-size g fs1 | grep -v GRP | grep -v "Block Limits" | grep -v "in_doubt" | awk '{printf "%s|%s|%s|%s|%s\n", $3, $1, $4, $5, $10}'`)
 
@@ -115,15 +124,40 @@ func ParseGPFS() ([]*FilesetInfo, error) {
 	return fsInfos, nil
 }
 
+func ParseGPFSHomes() ([]*FilesetInfo, error) {
+	var fsInfos []*FilesetInfo
+	cmd := exec.Command("sh", "-c", `/usr/lpp/mmfs/bin/mmrepquota --block-size g fs1 | grep USR | grep home | grep -v "Block Limits" | grep -v "in_doubt" | awk '{printf "%s|%s|%s|%s\n", $1, $4, $5, $10}'`)
+
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+
+	err := cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	data := buf.String()
+	for _, line := range strings.Split(data, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		info := parseLine(line)
+		if info == nil {
+			continue
+		}
+		fsInfos = append(fsInfos, info)
+	}
+	return fsInfos, nil
+}
+
 func parseLine(l string) *FilesetInfo {
 	elems := strings.Split(l, "|")
-	fstype := elems[0]
-	name := elems[1]
-	sizeGBstr := elems[2]
+	name := elems[0]
+	sizeGBstr := elems[1]
 	sizeGB, _ := strconv.ParseFloat(sizeGBstr, 64)
-	quotaGBstr := elems[3]
+	quotaGBstr := elems[2]
 	quotaGB, _ := strconv.ParseFloat(quotaGBstr, 64)
-	inodesStr := elems[4]
+	inodesStr := elems[3]
 	inodes, _ := strconv.ParseFloat(inodesStr, 64)
-	return &FilesetInfo{name: name, sizeGB: sizeGB, quotaGB: quotaGB, inodes: inodes, fstype: fstype}
+	return &FilesetInfo{name: name, sizeGB: sizeGB, quotaGB: quotaGB, inodes: inodes}
 }
